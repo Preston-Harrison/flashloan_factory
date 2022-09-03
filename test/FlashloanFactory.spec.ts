@@ -73,4 +73,19 @@ describe("FlashloanFactory.sol", () => {
             )).to.be.revertedWith("FlashloanFactory: Pool already exists");
         })
     });
+    describe("initiating a transaction", async () => {
+        it("should revert if the flashloan pool has not been created", async () => {
+            const target = ethers.Wallet.createRandom().address;
+            await expect(FlashloanFactory.connect(user).initiateTransaction(
+                MockToken.address,
+                ethers.utils.parseEther("1"),
+                target,
+                target,
+                "0x"
+            )).to.be.revertedWith("FlashloanFactory: Pool does not exist");
+        });
+        xit("should initiate a transaction with the correct initiator address", async () => {
+            // TODO implement
+        });
+    })
 });
