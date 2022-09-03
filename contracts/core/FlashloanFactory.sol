@@ -49,7 +49,7 @@ contract FlashloanFactory is Ownable, IFlashloanFactory {
         bytes memory params
     ) external override {
         address pool = poolForToken[token];
-        require(pool != address(0), "FlashloanFactory: Pool already exists");
+        require(pool != address(0), "FlashloanFactory: Pool does not exist");
         
         IFlashloanPool(pool).initiateTransactionWithInitiator(msg.sender, amount, callTarget, fundsTarget, params);
     }
