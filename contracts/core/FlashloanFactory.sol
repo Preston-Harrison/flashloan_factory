@@ -10,7 +10,8 @@ import "./FlashloanPool.sol";
 contract FlashloanFactory is AccessControl, IFlashloanFactory {
     bytes32 public constant POOL_CREATOR_ROLE = keccak256("POOL_CREATOR_ROLE");
 
-    address private developer;
+    /// @dev the address of the developer
+    address private _developer;
 
     /// @dev see {IFlashloanFactory-OWNER_TOKEN}
     address public immutable override OWNER_TOKEN;
@@ -20,7 +21,7 @@ contract FlashloanFactory is AccessControl, IFlashloanFactory {
     
     constructor() {
         // set vars
-        developer = msg.sender;
+        _developer = msg.sender;
         OWNER_TOKEN = address(new OwnerToken());
 
         // set roles
@@ -29,12 +30,12 @@ contract FlashloanFactory is AccessControl, IFlashloanFactory {
 
     /// @dev see {IFlashloanFactory-getDeveloper}
     function getDeveloper() public override view returns (address) {
-        return developer;
+        return _developer;
     }
 
     /// @dev see {IFlashloanFactory-setDeveloper}
-    function setDeveloper(address _developer) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        developer = _developer;
+    function setDeveloper(address developer) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _developer = developer;
     }
 
     /// @dev see {IFlashloanFactory-createPool}

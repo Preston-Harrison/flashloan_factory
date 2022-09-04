@@ -9,10 +9,12 @@ import "../interfaces/IOwnerToken.sol";
 contract OwnerToken is IOwnerToken {
     constructor() IOwnerToken("Flashloan Owner", "FLASH") {}
 
+    /// @dev see {IOwnerToken-mint}
     function mint(address to, address pool) external override onlyOwner {
         _mint(to, uint256(uint160(pool)));
     }
 
+    /// @dev ensures fees are withdrawn from previous owner before token is transferred
     function _beforeTokenTransfer(address from, address /* to */, uint256 tokenId) internal override {
         address flashloanPool = address(uint160(tokenId));
         if (from != address(0)) { // don't call ownerWithdraw on mint, as the pool does not exist

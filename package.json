@@ -4,7 +4,9 @@
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
     "coverage": "npx hardhat coverage",
-    "deploy:localhost": "npx hardhat run scripts/deployFlashloanFactory.ts --network localhost"
+    "deploy": "npx hardhat run scripts/deployFlashloanFactory.ts",
+    "deploy:localhost": "yarn deploy --network localhost",
+    "deploy:goerli": "yarn deploy --network goerli"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.1.1",

@@ -32,10 +32,14 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     /// @dev see {IFlashloanPool-flashloanFee}
     uint256 public override flashloanFee = MIN_FEE;
 
+    /// @dev mapping of accounts to deposits
     mapping(address => uint256) public deposits;
-    uint256 public accumulatedOwnerFees;
-    uint256 public accumulatedDeveloperFees;
-    uint256 public accumulatedProviderFees;
+    /// @dev current collected owner fees
+    uint256 public ownerFees;
+    /// @dev current collected developer fees
+    uint256 public developerFees;
+    /// @dev current collected liquidity provider fees
+    uint256 internal _providerFees;
 
     /// @param token the token that this contract will flashloan
     constructor(address token) PoolSettings() {
@@ -68,6 +72,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
         _initiateTransaction(initiator, amount, target, params);
     }
 
+    /// @dev initiates the transaction. See {IFlashloanPool-initiateTransaction}
     function _initiateTransaction(address initiator, uint256 amount, address target, bytes memory params) internal {
         require(IERC20(TOKEN).balanceOf(_self) >= amount, "FlashloanPool: Not enough liquidity");
 
@@ -86,33 +91,33 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     /// @return totalFee the total amount of fees to be taken
     function _collectFees(uint256 amount) internal returns (uint256 totalFee) {
         totalFee = flashloanFee * amount / 1 ether;
-        accumulatedProviderFees += (totalFee * PROVIDER_FEE) / 1 ether;
-        accumulatedOwnerFees += (totalFee * OWNER_FEE) / 1 ether;
-        accumulatedDeveloperFees += (totalFee * DEVELOPER_FEE) / 1 ether;
+        _providerFees += (totalFee * PROVIDER_FEE) / 1 ether;
+        ownerFees += (totalFee * OWNER_FEE) / 1 ether;
+        developerFees += (totalFee * DEVELOPER_FEE) / 1 ether;
     }
 
     /// @dev gets the ERC20 balance of this contract without the fees
     function getLiquidBalance() internal view returns (uint256) {
         return IERC20(TOKEN).balanceOf(_self) 
-            - accumulatedProviderFees 
-            - accumulatedOwnerFees
-            - accumulatedDeveloperFees;
+            - _providerFees 
+            - ownerFees
+            - developerFees;
     }
 
     /// @dev see {IFlashloanPool-deposit}
     function deposit(uint256 amount) external override returns (uint256 depositAmount, uint256 feeAmount) {
         uint256 balance = getLiquidBalance();
 
-        if (balance + accumulatedProviderFees == 0) {
+        if (balance + _providerFees == 0) {
             depositAmount = amount;
         } else {
-            depositAmount = amount * balance / (balance + accumulatedProviderFees);
+            depositAmount = amount * balance / (balance + _providerFees);
         }
 
         feeAmount = amount - depositAmount;
 
         deposits[msg.sender] += depositAmount;
-        accumulatedProviderFees += feeAmount;
+        _providerFees += feeAmount;
 
         IERC20(TOKEN).safeTransferFrom(msg.sender, _self, amount);
         emit Deposit(
@@ -127,10 +132,10 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
         require(deposits[msg.sender] >= amount, "FlashloanPool: Amount over deposit");
 
         uint256 liquidBalance = getLiquidBalance();
-        uint256 feeAmount = amount * accumulatedProviderFees / liquidBalance;
+        uint256 feeAmount = amount * _providerFees / liquidBalance;
 
         deposits[msg.sender] -= amount;
-        accumulatedProviderFees -= feeAmount;
+        _providerFees -= feeAmount;
 
         IERC20(TOKEN).safeTransfer(msg.sender, amount + feeAmount);
         emit Withdraw(
@@ -144,16 +149,16 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
 
     /// @dev see {IFlashloanPool-ownerWithdraw}
     function ownerWithdraw() external override {
-        IERC20(TOKEN).safeTransfer(getOwner(), accumulatedOwnerFees);
-        accumulatedOwnerFees = 0;
+        IERC20(TOKEN).safeTransfer(getOwner(), ownerFees);
+        ownerFees = 0;
     }
 
     /// @dev see {IFlashloanPool-developerWithdraw}
     function developerWithdraw() external override {
         IERC20(TOKEN).safeTransfer(
             IFlashloanFactory(FACTORY).getDeveloper(), 
-            accumulatedDeveloperFees
+            developerFees
         );
-        accumulatedDeveloperFees = 0;
+        developerFees = 0;
     }
 }

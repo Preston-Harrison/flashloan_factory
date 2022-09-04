@@ -2,6 +2,7 @@
 pragma solidity 0.8.9;
 
 abstract contract IFlashloanFactory {
+    
     event CreatePool(
         address indexed creator,
         address indexed token,
@@ -23,8 +24,12 @@ abstract contract IFlashloanFactory {
     function createPool(address token) external virtual returns (address pool);
 
     /// @dev initiates a transaction for {token}. Sets the initiator of the 
-    /// flashloan to the caller of this function, as opposed to this contract
-    /// see {IFlashloan-initiateTransactionWithInitiator}
+    /// flashloan to the caller of this function, as opposed to this contract.
+    /// See {IFlashloanPool-initiateTransaction}
+    /// @param token the token loaned in the flashloan
+    /// @param amount the amount loaned
+    /// @param target the target of the flashloan
+    /// @param params the parameters to be passed when executing the function
     function initiateTransaction(
         address token, 
         uint256 amount, 
