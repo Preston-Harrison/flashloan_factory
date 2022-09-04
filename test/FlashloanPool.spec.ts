@@ -110,7 +110,6 @@ describe("FlashloanPool.sol", () => {
             await FlashloanFactory.connect(user1).initiateTransaction(MockToken.address, LOAN_AMOUNT, MockFlashloanReceiver.address, "0x");
             const expectedFee = LOAN_AMOUNT.mul(flashloanFee).div(ethers.constants.WeiPerEther);
             const expectedProviderFee = expectedFee.mul(providerFee).div(ethers.constants.WeiPerEther);
-            expect(await FlashloanPool.accumulatedProviderFees()).to.eq(expectedProviderFee);
 
             const depositAmount = LOAN_AMOUNT.mul(LOAN_AMOUNT).div(LOAN_AMOUNT.add(expectedProviderFee));
             await expect(FlashloanPool.connect(user2).deposit(LOAN_AMOUNT))
@@ -127,8 +126,6 @@ describe("FlashloanPool.sol", () => {
 
             expect(await MockToken.balanceOf(user1.address)).to.eq(LOAN_AMOUNT.add(expectedProviderFee).add(1)); // rounding error
             expect(await FlashloanPool.deposits(user1.address)).to.eq(0);
-
-            expect(await FlashloanPool.accumulatedProviderFees()).to.eq(0);
         });
         it("should allow the developer and owner to withdraw fees", async () => {
             const flashloanFee = await FlashloanPool.flashloanFee();
