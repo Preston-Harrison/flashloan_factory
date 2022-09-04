@@ -24,6 +24,8 @@ abstract contract IFlashloanPool {
         uint256 amountFromFees
     );
 
+    event ChangeFee(uint256 fee);
+
     /// @dev the depoloyer of this contract
     function FACTORY() external view virtual returns (address);
     /// @dev the ERC20 token for this FlashloanPool

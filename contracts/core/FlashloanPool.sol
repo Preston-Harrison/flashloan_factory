@@ -30,7 +30,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     address internal immutable _self;
 
     /// @dev see {IFlashloanPool-flashloanFee}
-    uint256 public override flashloanFee = MIN_FEE;
+    uint256 public override flashloanFee;
 
     /// @dev mapping of accounts to deposits
     mapping(address => uint256) public deposits;
@@ -46,6 +46,9 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
         FACTORY = msg.sender;
         TOKEN = token;
         _self = address(this);
+
+        flashloanFee = MIN_FEE;
+        emit ChangeFee(flashloanFee);
     }
 
     /// @dev see {IFlashloanPool-getOwner}
@@ -60,6 +63,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
         require(fee >= MIN_FEE, "FlashloanPool: Fee below minimum");
         require(fee <= MAX_FEE, "FlashloanPool: Fee above maximum");
         flashloanFee = fee;
+        emit ChangeFee(fee);
     }
 
     /// @dev see {IFlashloanPool-initiateTransaction}
