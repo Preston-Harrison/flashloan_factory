@@ -40,6 +40,7 @@ contract PoolCreator is Ownable {
     }
 
     function createPools(address[] calldata tokens) external payable requireValue(tokens.length * multiMintFee) returns (address[] memory pools) {
+        require(tokens.length > 1, "PoolCreator: Must provide multiple tokens");
         pools = new address[](tokens.length);
         uint256 length = tokens.length;
         for (uint256 i = 0; i < length; i++) {
