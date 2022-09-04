@@ -7,8 +7,9 @@ import "../interfaces/IFlashloanReceiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "./PoolSettings.sol";
 
-contract FlashloanPool is IFlashloanPool {
+contract FlashloanPool is IFlashloanPool, PoolSettings {
     using SafeERC20 for IERC20;
 
     modifier onlyOwner {
@@ -34,10 +35,10 @@ contract FlashloanPool is IFlashloanPool {
     mapping(address => uint256) public deposits;
     uint256 public accumulatedOwnerFees;
     uint256 public accumulatedDeveloperFees;
-    uint256 accumulatedProviderFees;
+    uint256 public accumulatedProviderFees;
 
     /// @param token the token that this contract will flashloan
-    constructor(address token) {
+    constructor(address token) PoolSettings() {
         FACTORY = msg.sender;
         TOKEN = token;
         _self = address(this);
@@ -63,16 +64,17 @@ contract FlashloanPool is IFlashloanPool {
     }
 
     /// @dev see {IFlashloanPool-initiateTransactionWithInitiator}
-    function initiateTransactionWithInitiator(address initiator, uint256 amount, address target, bytes memory params) external override {
+    function initiateTransactionWithInitiator(address initiator, uint256 amount, address target, bytes memory params) external override onlyFactory {
         _initiateTransaction(initiator, amount, target, params);
     }
 
-    function _initiateTransaction(address initiator, uint256 amount, address target, bytes memory params) internal onlyFactory {
+    function _initiateTransaction(address initiator, uint256 amount, address target, bytes memory params) internal {
         require(IERC20(TOKEN).balanceOf(_self) >= amount, "FlashloanPool: Not enough liquidity");
 
-        IERC20(TOKEN).safeTransfer(target, amount);
-
         uint256 totalFee = _collectFees(amount);
+        require(totalFee >= MIN_FEE_AMOUNT, "FlashloanPool: Loan too small");
+
+        IERC20(TOKEN).safeTransfer(target, amount);
         IFlashloanReceiver(target).executeTransaction(initiator, TOKEN, amount, totalFee, params);
         IERC20(TOKEN).safeTransferFrom(target, _self, amount + totalFee);
 
@@ -84,9 +86,9 @@ contract FlashloanPool is IFlashloanPool {
     /// @return totalFee the total amount of fees to be taken
     function _collectFees(uint256 amount) internal returns (uint256 totalFee) {
         totalFee = flashloanFee * amount / 1 ether;
-        accumulatedProviderFees += (totalFee * 7) / 10;
-        accumulatedOwnerFees += (totalFee * 2) / 10;
-        accumulatedDeveloperFees += (totalFee * 1) / 10;
+        accumulatedProviderFees += (totalFee * PROVIDER_FEE) / 1 ether;
+        accumulatedOwnerFees += (totalFee * OWNER_FEE) / 1 ether;
+        accumulatedDeveloperFees += (totalFee * DEVELOPER_FEE) / 1 ether;
     }
 
     /// @dev gets the ERC20 balance of this contract without the fees
@@ -101,7 +103,12 @@ contract FlashloanPool is IFlashloanPool {
     function deposit(uint256 amount) external override returns (uint256 depositAmount, uint256 feeAmount) {
         uint256 balance = getLiquidBalance();
 
-        depositAmount = amount * balance / (amount + balance);
+        if (balance + accumulatedProviderFees == 0) {
+            depositAmount = amount;
+        } else {
+            depositAmount = amount * balance / (balance + accumulatedProviderFees);
+        }
+
         feeAmount = amount - depositAmount;
 
         deposits[msg.sender] += depositAmount;
@@ -116,7 +123,7 @@ contract FlashloanPool is IFlashloanPool {
     }
 
     /// @dev see {IFlashloanPool-withdraw}
-    function withdraw(uint256 amount) external override returns (uint256) {
+    function withdraw(uint256 amount) external override returns (uint256, uint256) {
         require(deposits[msg.sender] >= amount, "FlashloanPool: Amount over deposit");
 
         uint256 liquidBalance = getLiquidBalance();
@@ -131,7 +138,8 @@ contract FlashloanPool is IFlashloanPool {
             amount,
             feeAmount
         );
-        return amount + feeAmount;
+
+        return (amount, feeAmount);
     }
 
     /// @dev see {IFlashloanPool-ownerWithdraw}

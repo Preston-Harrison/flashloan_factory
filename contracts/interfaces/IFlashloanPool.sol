@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.9;
 
-/// @dev anywhere a fee is referenced, it is a fraction where 1 ether is 100%
 /// @author Preston Harrison <https://github.com/Preston-Harrison>
 /// @title IFlashLoanPool
 abstract contract IFlashloanPool {
@@ -30,15 +29,10 @@ abstract contract IFlashloanPool {
     /// @dev the ERC20 token for this FlashloanPool
     function TOKEN() external view virtual returns (address);
 
-    /// @dev The maximum fee for flashloans
-    uint256 public constant MAX_FEE = 1 ether * 0.005; // 0.5%
-    /// @dev the minimum fee for flashloans
-    uint256 public constant MIN_FEE = 1 ether * 0.0005; // 0.05%
-
     /// @dev gets the current owner of this contract. 
     /// This is the address that receives owner fees
     function getOwner() external view virtual returns (address);
-    /// @dev gets the current flashloan fee. Always between {MAX_FEE} and {MIN_FEE}
+    /// @dev gets the current flashloan fee, which is a fraction where 1 ether is 100%
     function flashloanFee() external view virtual returns (uint256);
     
     /// @dev initiates a flashloan transaction by:
@@ -60,15 +54,16 @@ abstract contract IFlashloanPool {
     /// directly to fees to offset the fees taken when withdrawing.
     ///
     /// @param amount the amount of {TOKEN} to deposit
-    /// @return direct the amount of {amount} that is moved directly to liquidity
-    /// @return fees the amount of {amount} that is moved directly to fees
-    function deposit(uint256 amount) external virtual returns(uint256 direct, uint256 fees);
+    /// @return depositIn the amount of {amount} that is moved directly to liquidity
+    /// @return feesIn the amount of {amount} that is moved directly to fees
+    function deposit(uint256 amount) external virtual returns(uint256 depositIn, uint256 feesIn);
 
     /// @dev withdraws {amount} directly as liquidity, and transfers both it
     /// and fees to the withdrawer
     /// @param amount the amount of liquidity to withdraw
-    /// @return amountOut the total amount transfered to the caller
-    function withdraw(uint256 amount) external virtual returns (uint256 amountOut);
+    /// @return depositOut the total amount transfered to the caller direct from their deposit
+    /// @return feesOut the total amount transfered to the caller from fees
+    function withdraw(uint256 amount) external virtual returns (uint256 depositOut, uint256 feesOut);
 
     /// @dev transfers owner fees to the owner
     function ownerWithdraw() external virtual;

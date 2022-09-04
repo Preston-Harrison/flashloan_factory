@@ -1,7 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import chai, { expect } from 'chai';
 import { solidity } from 'ethereum-waffle';
-import { FlashloanFactory, FlashloanFactory__factory, MockToken__factory, OwnerToken__factory } from '../typechain-types';
+import { FlashloanFactory, FlashloanFactory__factory, FlashloanPool__factory, MockFlashloanReceiver__factory, MockToken__factory, OwnerToken__factory } from '../typechain-types';
 import { ethers } from 'hardhat';
 import { MockToken } from '../typechain-types/contracts/mocks';
 
@@ -25,13 +25,17 @@ describe("FlashloanFactory.sol", () => {
         MockToken = await new MockToken__factory(deployer).deploy();
     });
 
+    it("should create an owner token", async () => {
+        // basically check the OwnerToken is deployed
+        const OwnerToken = await OwnerTokenFactory(user);
+        expect(await OwnerToken.symbol()).to.eq("FLASH");
+    });
+
     describe("getters and setters", () => {
-        it("getter properties should return the correct properties", async () => {
-            expect(await FlashloanFactory.getDeveloper()).to.eq(deployer.address);
-    
-            // basically check the OwnerToken is deployed
-            const OwnerToken = await OwnerTokenFactory(user);
-            expect(await OwnerToken.symbol()).to.eq("FLASH");
+        it("should get and set developer address", async () => {
+            const { address } = ethers.Wallet.createRandom();
+            await FlashloanFactory.setDeveloper(address);
+            expect(await FlashloanFactory.getDeveloper()).to.eq(address);
         });
     });
 
@@ -72,8 +76,31 @@ describe("FlashloanFactory.sol", () => {
                 "0x"
             )).to.be.revertedWith("FlashloanFactory: Pool does not exist");
         });
-        xit("should initiate a transaction with the correct initiator address", async () => {
-            // TODO implement
+        it("should initiate a transaction with the correct initiator address", async () => {
+            // create pool
+            await FlashloanFactory.grantRole(POOL_CREATOR_ROLE, user.address);
+            await FlashloanFactory.connect(user).createPool(
+                MockToken.address, 
+            );
+
+            const LOAN_AMOUNT = ethers.utils.parseEther("1000");
+
+            // deposit into pool
+            const FlashloanPool = FlashloanPool__factory.connect(await FlashloanFactory.poolForToken(MockToken.address), user);
+            await MockToken.mint(user.address, LOAN_AMOUNT);
+            await MockToken.connect(user).approve(FlashloanPool.address, LOAN_AMOUNT);
+            await FlashloanPool.connect(user).deposit(LOAN_AMOUNT);
+            
+            // initiate transaction
+            const flashloanFee = await FlashloanPool.flashloanFee();
+            const MockFlashloanReceiver = await new MockFlashloanReceiver__factory(user).deploy();
+            await expect(FlashloanFactory.connect(user).initiateTransaction(MockToken.address, LOAN_AMOUNT, MockFlashloanReceiver.address, "0x"))
+                .to.emit(FlashloanPool, "Loan").withArgs(
+                    user.address, 
+                    MockFlashloanReceiver.address, 
+                    LOAN_AMOUNT, 
+                    flashloanFee.mul(LOAN_AMOUNT).div(ethers.constants.WeiPerEther)
+                );
         });
     })
 });
