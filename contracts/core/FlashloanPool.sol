@@ -58,25 +58,25 @@ contract FlashloanPool is IFlashloanPool {
     }
 
     /// @dev see {IFlashloanPool-initiateTransaction}
-    function initiateTransaction(uint256 amount, address callTarget, address fundsTarget, bytes memory params) external override {
-        _initiateTransaction(msg.sender, amount, callTarget, fundsTarget, params);
+    function initiateTransaction(uint256 amount, address target, bytes memory params) external override {
+        _initiateTransaction(msg.sender, amount, target, params);
     }
 
     /// @dev see {IFlashloanPool-initiateTransactionWithInitiator}
-    function initiateTransactionWithInitiator(address initiator, uint256 amount, address callTarget, address fundsTarget, bytes memory params) external override {
-        _initiateTransaction(initiator, amount, callTarget, fundsTarget, params);
+    function initiateTransactionWithInitiator(address initiator, uint256 amount, address target, bytes memory params) external override {
+        _initiateTransaction(initiator, amount, target, params);
     }
 
-    function _initiateTransaction(address initiator, uint256 amount, address callTarget, address fundsTarget, bytes memory params) internal onlyFactory {
+    function _initiateTransaction(address initiator, uint256 amount, address target, bytes memory params) internal onlyFactory {
         require(IERC20(TOKEN).balanceOf(_self) >= amount, "FlashloanPool: Not enough liquidity");
 
-        IERC20(TOKEN).safeTransfer(fundsTarget, amount);
+        IERC20(TOKEN).safeTransfer(target, amount);
 
         uint256 totalFee = _collectFees(amount);
-        IFlashloanReceiver(callTarget).executeTransaction(initiator, TOKEN, amount, totalFee, params);
-        IERC20(TOKEN).safeTransferFrom(fundsTarget, _self, amount + totalFee);
+        IFlashloanReceiver(target).executeTransaction(initiator, TOKEN, amount, totalFee, params);
+        IERC20(TOKEN).safeTransferFrom(target, _self, amount + totalFee);
 
-        emit Loan(initiator, callTarget, fundsTarget, amount, totalFee);
+        emit Loan(initiator, target, amount, totalFee);
     }
 
     /// @dev gets the flashloan fees for {amount} and increases associated fee variables
@@ -110,7 +110,8 @@ contract FlashloanPool is IFlashloanPool {
         IERC20(TOKEN).safeTransferFrom(msg.sender, _self, amount);
         emit Deposit(
             msg.sender,
-            amount
+            depositAmount,
+            feeAmount
         );
     }
 

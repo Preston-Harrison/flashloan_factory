@@ -8,21 +8,21 @@ abstract contract IFlashloanPool {
 
     event Loan(
         address indexed initiator, 
-        address indexed callTarget, 
-        address indexed fundsTarget, 
+        address indexed target, 
         uint256 amount,
         uint256 fees
     );
 
     event Deposit(
         address indexed account,
-        uint256 amount
+        uint256 amountToDeposit,
+        uint256 amountToFees
     );
 
     event Withdraw(
         address indexed account,
-        uint256 amount,
-        uint256 fees
+        uint256 amountFromDeposit,
+        uint256 amountFromFees
     );
 
     /// @dev the depoloyer of this contract
@@ -42,18 +42,17 @@ abstract contract IFlashloanPool {
     function flashloanFee() external view virtual returns (uint256);
     
     /// @dev initiates a flashloan transaction by:
-    ///     - transferring {amount} of {TOKEN} to {fundsTarget}
-    ///     - calling executeTransaction (see IFlashloanReceiver)
-    ///     - transferring {amount} + fees from {fundsTarget} to this
+    ///     - transferring {amount} of {TOKEN} to {target}
+    ///     - calling executeTransaction on target (see IFlashloanReceiver)
+    ///     - transferring {amount} + fees from {target} to this
     /// @param amount the amount of {TOKEN} to take as a loan
-    /// @param callTarget the contract for which to call executeTransaction
-    /// @param fundsTarget the account to send the funds to
+    /// @param target the address of the contract receiving the funds, implementing the {IFlashLoanReceiver} interface
     /// @param params any paramaters to send in executeTransaction
-    function initiateTransaction(uint256 amount, address callTarget, address fundsTarget, bytes memory params) external virtual;
+    function initiateTransaction(uint256 amount, address target, bytes memory params) external virtual;
 
     /// @dev the same as {initiateTransaction}, but it allows the initiator to be set
     /// This should only be callable from the factory
-    function initiateTransactionWithInitiator(address initiator, uint256 amount, address callTarget, address fundsTarget, bytes memory params) external virtual;
+    function initiateTransactionWithInitiator(address initiator, uint256 amount, address target, bytes memory params) external virtual;
 
     /// @dev deposits {amount} of {TOKEN} into the contract
     ///
