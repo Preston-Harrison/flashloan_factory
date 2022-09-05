@@ -10,10 +10,17 @@ contract PoolCreator is Ownable {
     uint256 public oneTimeMintFee;
     uint256 public multiMintFee;
 
-    event ChangeFees(uint256 oneTimeMintFee, uint256 multiMintFee);
+    mapping(address => bool) public isFeeExempt;
 
-    modifier requireValue(uint256 value) {
-        require(msg.value == value, "PoolCreator: Invalid msg.value");
+    event ChangeFees(uint256 oneTimeMintFee, uint256 multiMintFee);
+    event SetFeeExempt(address user, bool exemption);
+
+    modifier requirePayment(uint256 value) {
+        if (!isFeeExempt[msg.sender]) {
+            require(msg.value == value, "PoolCreator: Invalid msg.value");
+        } else {
+            require(msg.value == 0, "PoolCreator: Caller is fee exempt");
+        }
         _;
     }
 
@@ -31,7 +38,12 @@ contract PoolCreator is Ownable {
         emit ChangeFees(_oneTimeMintFee, _multiMintFee);
     }
 
-    function createPool(address token) external payable requireValue(oneTimeMintFee) returns (address pool) {
+    function setFeeExemption(address user, bool exemption) external onlyOwner {
+        isFeeExempt[user] = exemption;
+        emit SetFeeExempt(user, exemption);
+    }
+
+    function createPool(address token) external payable requirePayment(oneTimeMintFee) returns (address pool) {
         return _createPool(token);
     }
 
@@ -39,12 +51,16 @@ contract PoolCreator is Ownable {
         return IFlashloanFactory(factory).createPool(token);
     }
 
-    function createPools(address[] calldata tokens) external payable requireValue(tokens.length * multiMintFee) returns (address[] memory pools) {
+    function createPools(address[] calldata tokens) external payable requirePayment(tokens.length * multiMintFee) returns (address[] memory pools) {
         require(tokens.length > 1, "PoolCreator: Must provide multiple tokens");
         pools = new address[](tokens.length);
         uint256 length = tokens.length;
         for (uint256 i = 0; i < length; i++) {
             pools[i] = _createPool(tokens[i]);
         }
+    }
+
+    function withdraw() external {
+        payable(owner()).transfer(address(this).balance);
     }
 }

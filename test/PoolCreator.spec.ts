@@ -36,6 +36,15 @@ describe("PoolCreator.sol", () => {
             expect(await PoolCreator.multiMintFee()).to.eq(MULTI_MINT_FEE.div(2));
             expect(await PoolCreator.oneTimeMintFee()).to.eq(ONE_TIME_MINT_FEE.div(2));
         });
+        it("should get and set fee exemptions", async () => {
+            await expect(PoolCreator.setFeeExemption(user.address, true))
+                .to.emit(PoolCreator, "SetFeeExempt").withArgs(user.address, true);
+            expect(await PoolCreator.isFeeExempt(user.address)).to.be.true;
+        });
+        it("should not allow users that are not the owner to set values", async () => {
+            await expect(PoolCreator.connect(user).setFees(0, 0)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(PoolCreator.connect(user).setFeeExemption(user.address, true)).to.be.revertedWith("Ownable: caller is not the owner");
+        });
     });
 
     describe("creating a pool", () => {
@@ -43,6 +52,11 @@ describe("PoolCreator.sol", () => {
             await PoolCreator.createPool(MockToken.address, {
                 value: ONE_TIME_MINT_FEE
             });
+            expect(await FlashloanFactory.poolForToken(MockToken.address)).to.not.eq(ethers.constants.AddressZero);
+        });
+        it("should allow fee exempt users to create fees without paying", async () => {
+            await PoolCreator.setFeeExemption(user.address, true);
+            await PoolCreator.connect(user).createPool(MockToken.address);
             expect(await FlashloanFactory.poolForToken(MockToken.address)).to.not.eq(ethers.constants.AddressZero);
         });
         it("should create multiple pools with multiple fees", async () => {
@@ -64,11 +78,29 @@ describe("PoolCreator.sol", () => {
             await expect(PoolCreator.createPools([MockToken.address, MockToken2.address], {
                 value: MULTI_MINT_FEE.mul(2).sub(1)
             })).to.be.revertedWith("PoolCreator: Invalid msg.value");
+
+            await PoolCreator.setFeeExemption(user.address, true);
+            await expect(PoolCreator.connect(user).createPools([MockToken.address, MockToken2.address], {
+                value: MULTI_MINT_FEE.mul(2)
+            })).to.be.revertedWith("PoolCreator: Caller is fee exempt");
         });
         it("should revert if only one token is passed into createPools", async () => {
             await expect(PoolCreator.createPools([MockToken.address], {
                 value: MULTI_MINT_FEE
             })).to.be.revertedWith("PoolCreator: Must provide multiple tokens");
+        });
+    });
+
+    describe("withdrawing funds", () => {
+        it("should allow the owner to withdraw funds", async () => {
+            await PoolCreator.createPool(MockToken.address, {
+                value: ONE_TIME_MINT_FEE
+            });
+            const oldBalance = await ethers.provider.getBalance(deployer.address);
+            expect(await ethers.provider.getBalance(PoolCreator.address)).to.eq(ONE_TIME_MINT_FEE);
+            await PoolCreator.connect(user).withdraw();
+            const newBalance = await ethers.provider.getBalance(deployer.address);
+            expect(newBalance.sub(oldBalance)).to.eq(ONE_TIME_MINT_FEE);
         });
     });
 });
