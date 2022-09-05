@@ -1,11 +1,12 @@
 import hre from "hardhat";
-import { FlashloanFactory__factory, PoolCreator__factory } from "../typechain-types";
+import { FlashloanFactory__factory, PoolCreator__factory } from "../../typechain-types";
+import { verify } from "../verify";
 
 const ONE_TIME_MINT_FEE = hre.ethers.utils.parseEther("0.5");
 const MULTI_MINT_FEE = hre.ethers.utils.parseEther("0.3");
 const POOL_CREATOR_ROLE = hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes("POOL_CREATOR_ROLE"));
 
-const main = async () => {
+export const deployFlashloanFactory = async (_verify: boolean) => {
     const [signer] = await hre.ethers.getSigners();
     console.log(`Signer is ${signer.address}. Network is ${hre.network.name}`);
     console.log(`Deploying FlashloanFactory...`);
@@ -22,6 +23,11 @@ const main = async () => {
     const tx = await FlashloanFactory.grantRole(POOL_CREATOR_ROLE, PoolCreator.address);
     await tx.wait();
     console.log(`Granted`)
+
+    if (_verify) {
+        await verify(FlashloanFactory.address);
+        await verify(PoolCreator.address, FlashloanFactory.address, ONE_TIME_MINT_FEE, MULTI_MINT_FEE);
+    }
 }
 
-main();
+deployFlashloanFactory(!!process.env.VERIFY)

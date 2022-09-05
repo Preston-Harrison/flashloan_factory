@@ -2,6 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@typechain/hardhat";
 import "@nomiclabs/hardhat-ethers";
 import "solidity-coverage";
+import "@nomiclabs/hardhat-etherscan";
 import "dotenv/config";
 
 const config: HardhatUserConfig = {
@@ -17,6 +18,9 @@ const config: HardhatUserConfig = {
       url: "https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
       accounts: [process.env.PRIVATE_KEY!]
     }
+  },
+  etherscan: {
+    apiKey: "ZBQTAZN8SCM2RZVJWFY215RZ1I9S2AV55X"
   }
 };
 
