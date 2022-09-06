@@ -39,7 +39,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     /// @dev current collected developer fees
     uint256 public developerFees;
     /// @dev current collected liquidity provider fees
-    uint256 internal _providerFees;
+    uint256 public providerFees;
 
     /// @param token the token that this contract will flashloan
     constructor(address token) PoolSettings() {
@@ -95,7 +95,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     /// @return totalFee the total amount of fees to be taken
     function _collectFees(uint256 amount) internal returns (uint256 totalFee) {
         totalFee = flashloanFee * amount / 1 ether;
-        _providerFees += (totalFee * PROVIDER_FEE) / 1 ether;
+        providerFees += (totalFee * PROVIDER_FEE) / 1 ether;
         ownerFees += (totalFee * OWNER_FEE) / 1 ether;
         developerFees += (totalFee * DEVELOPER_FEE) / 1 ether;
     }
@@ -103,7 +103,7 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     /// @dev gets the ERC20 balance of this contract without the fees
     function getLiquidBalance() internal view returns (uint256) {
         return IERC20(TOKEN).balanceOf(_self) 
-            - _providerFees 
+            - providerFees 
             - ownerFees
             - developerFees;
     }
@@ -112,16 +112,16 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
     function deposit(uint256 amount) external override returns (uint256 depositAmount, uint256 feeAmount) {
         uint256 balance = getLiquidBalance();
 
-        if (balance + _providerFees == 0) {
+        if (balance + providerFees == 0) {
             depositAmount = amount;
         } else {
-            depositAmount = amount * balance / (balance + _providerFees);
+            depositAmount = amount * balance / (balance + providerFees);
         }
 
         feeAmount = amount - depositAmount;
 
         deposits[msg.sender] += depositAmount;
-        _providerFees += feeAmount;
+        providerFees += feeAmount;
 
         IERC20(TOKEN).safeTransferFrom(msg.sender, _self, amount);
         emit Deposit(
@@ -136,10 +136,10 @@ contract FlashloanPool is IFlashloanPool, PoolSettings {
         require(deposits[msg.sender] >= amount, "FlashloanPool: Amount over deposit");
 
         uint256 liquidBalance = getLiquidBalance();
-        uint256 feeAmount = amount * _providerFees / liquidBalance;
+        uint256 feeAmount = amount * providerFees / liquidBalance;
 
         deposits[msg.sender] -= amount;
-        _providerFees -= feeAmount;
+        providerFees -= feeAmount;
 
         IERC20(TOKEN).safeTransfer(msg.sender, amount + feeAmount);
         emit Withdraw(
